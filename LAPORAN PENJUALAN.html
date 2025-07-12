@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Laporan Keuangan ORISEND</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+  <style>
+    [v-cloak] { display: none; }
+    button.active {
+      background-color: #4CAF50;
+      color: white;
+    }
+    input, select {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 4px;
+    }
+    .retur-row {
+      background-color: #ffcccc;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-4 font-sans">
+  <div id="app" v-cloak class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6 border-b pb-2">
+      <h1 class="text-lg font-bold text-blue-700">Laporan Keuangan ORISEND</h1>
+      <div class="flex gap-4">
+        <button :class="{ active: tab==='rekap' }" @click="tab='rekap'" class="px-4 py-2 rounded border">Rekapitulasi</button>
+        <button :class="{ active: tab==='penjualan' }" @click="tab='penjualan'" class="px-4 py-2 rounded border">Penjualan</button>
+        <button :class="{ active: tab==='pengeluaran' }" @click="tab='pengeluaran'" class="px-4 py-2 rounded border">Pengeluaran</button>
+        <button :class="{ active: tab==='stok_retur' }" @click="tab='stok_retur'" class="px-4 py-2 rounded border">Stok Retur</button>
+      </div>
+    </div>
+
+    <!-- REKAPITULASI -->
+    <div v-show="tab === 'rekap'" class="grid grid-cols-2 gap-4">
+      <div class="bg-white p-4 shadow rounded">
+        <h2 class="text-lg font-semibold text-blue-700 mb-2">Total Omzet Penjualan</h2>
+        <p v-for="(total, mp) in omzetPerMarketplace" :key="mp">{{ mp }}: Rp{{ total.toLocaleString('id-ID') }}</p>
+        <p class="font-bold mt-2">Total Omzet: Rp{{ totalOmzet.toLocaleString('id-ID') }}</p>
+      </div>
+      <div class="bg-white p-4 shadow rounded">
+        <h2 class="text-lg font-semibold text-blue-700 mb-2">Total Produk Terjual (PCS)</h2>
+        <p v-for="(total, mp) in pcsPerMarketplace" :key="mp">{{ mp }}: {{ total }} pcs</p>
+        <p class="font-bold mt-2">Total Terjual: {{ totalPCS }} pcs</p>
+      </div>
+      <div class="bg-white p-4 shadow rounded">
+        <h2 class="text-lg font-semibold text-blue-700 mb-2">Total Pengeluaran</h2>
+        <label class="block mb-2">Gaji Karyawan:
+          <input type="number" v-model.number="gajiKaryawan" class="ml-2 w-32" />
+        </label>
+        <p>Pengeluaran DTF: Rp{{ pengeluaranDTF.toLocaleString('id-ID') }}</p>
+        <p>Pengeluaran Harian: Rp{{ pengeluaranHarian.toLocaleString('id-ID') }}</p>
+        <p>Pengeluaran Kaos Polos: Rp{{ pengeluaranKaos.toLocaleString('id-ID') }}</p>
+        <p class="font-bold mt-2">Total Pengeluaran: Rp{{ totalPengeluaran.toLocaleString('id-ID') }}</p>
+      </div>
+      <div class="bg-white p-4 shadow rounded">
+        <h2 class="text-lg font-semibold text-green-700 mb-2">Laba / Rugi</h2>
+        <p class="text-2xl font-bold text-green-600">Rp{{ (totalOmzet - totalPengeluaran).toLocaleString('id-ID') }}</p>
+      </div>
+    </div>
+
+    <!-- PENJUALAN -->
+    <div v-show="tab === 'penjualan'" class="bg-white p-4 shadow rounded">
+      <h2 class="text-lg font-bold mb-4">Penjualan ORISEND</h2>
+      <div class="mb-4">
+        <input v-model="searchQuery" placeholder="Cari berdasarkan Resi atau Marketplace" class="border p-2 rounded mr-2" />
+        <button @click="filterPenjualan" class="px-4 py-2 bg-blue-600 text-white rounded">Cari/Filter</button>
+      </div>
+      <table class="w-full mb-4">
+        <thead class="bg-green-600 text-white text-sm">
+          <tr>
+            <th>No</th><th>Tanggal</th><th>Produk</th><th>Usia</th><th>Ukuran</th><th>Warna</th>
+            <th>Resi</th><th>Cotton</th><th>Marketplace</th><th>Banyak</th><th>Harga</th>
+            <th>Jumlah</th><th>Diterima</th><th>Ket</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(p, i) in filteredPenjualan" :key="i" :class="{ 'retur-row': p.keterangan === 'Retur' }" class="text-sm">
+            <td>{{ i+1 }}</td>
+            <td><input type="date" v-model="p.tanggal" /></td>
+            <td><input list="produkList" v-model="p.produk" /></td>
+            <td><select v-model="p.usia"><option>Dewasa</option><option>Anak</option></select></td>
+            <td><select v-model="p.ukuran"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option><option>XXXXL</option></select></td>
+            <td><select v-model="p.warna"><option>Hitam</option><option>Merah</option><option>Maroon</option><option>Tosca Muda</option><option>Navy</option></select></td>
+            <td><input v-model="p.resi" /></td>
+            <td><select v-model="p.cotton"><option>24s</option><option>30s</option></select></td>
+            <td><select v-model="p.marketplace"><option>Shopee</option><option>TikTok</option><option>Lazada</option><option>Offline</option></select></td>
+            <td><input type="number" v-model.number="p.banyak" /></td>
+            <td><input type="number" v-model.number="p.harga" /></td>
+            <td>Rp{{ (p.banyak * p.harga).toLocaleString('id-ID') }}</td>
+            <td><input type="number" v-model.number="p.diterima" /></td>
+            <td><select v-model="p.keterangan"><option></option><option>Retur</option><option>Terima</option></select></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="flex justify-between text-sm font-semibold">
+        <div>Total PCS: {{ totalPCS }}</div>
+        <div>Total Penjualan: Rp{{ totalOmzet.toLocaleString('id-ID') }}</div>
+      </div>
+      <button @click="tambahBaris" class="mt-4 px-4 py-2 bg-green-600 text-white rounded">+ Tambah Baris</button>
+      <datalist id="produkList">
+        <option v-for="n in namaProduk" :key="n" :value="n" />
+      </datalist>
+    </div>
+
+    <!-- PENGELUARAN -->
+    <div v-show="tab === 'pengeluaran'" class="bg-white p-4 shadow rounded space-y-8">
+  <h2 class="text-lg font-bold mb-4">Pengeluaran</h2>
+
+  <!-- Pengeluaran DTF -->
+  <div>
+    <h3 class="text-md font-semibold text-blue-700 mb-2">Pengeluaran DTF</h3>
+    <table>
+      <thead>
+        <tr><th>No</th><th>Tanggal</th><th>Meter</th><th>Harga</th><th>Jumlah</th></tr>
+      </thead>
+      <tbody>
+        <tr v-for="(dtf, i) in pengeluaranDTFData" :key="'dtf'+i">
+          <td>{{ i+1 }}</td>
+          <td><input type="date" v-model="dtf.tanggal" /></td>
+          <td><input type="number" v-model.number="dtf.meter" /></td>
+          <td><input type="number" v-model.number="dtf.harga" /></td>
+          <td>Rp{{ (dtf.meter * dtf.harga).toLocaleString('id-ID') }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <button @click="pengeluaranDTFData.push({tanggal:'', meter:0, harga:0})" class="px-3 py-1 bg-green-600 text-white rounded">+ Tambah Baris</button>
+  </div>
+
+  <!-- Pengeluaran Harian -->
+  <div>
+    <h3 class="text-md font-semibold text-blue-700 mb-2">Pengeluaran Harian</h3>
+    <table>
+      <thead>
+        <tr><th>No</th><th>Tanggal</th><th>Nama Barang</th><th>Harga</th><th>Banyak</th><th>Jumlah</th></tr>
+      </thead>
+      <tbody>
+        <tr v-for="(h, i) in pengeluaranHarianData" :key="'harian'+i">
+          <td>{{ i+1 }}</td>
+          <td><input type="date" v-model="h.tanggal" /></td>
+          <td><input v-model="h.nama" /></td>
+          <td><input type="number" v-model.number="h.harga" /></td>
+          <td><input type="number" v-model.number="h.banyak" /></td>
+          <td>Rp{{ (h.harga * h.banyak).toLocaleString('id-ID') }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <button @click="pengeluaranHarianData.push({tanggal:'', nama:'', harga:0, banyak:0})" class="px-3 py-1 bg-green-600 text-white rounded">+ Tambah Baris</button>
+  </div>
+
+  <!-- Pengeluaran Kaos Polos -->
+  <div>
+    <h3 class="text-md font-semibold text-blue-700 mb-2">Pengeluaran Kaos Polos</h3>
+    <table>
+      <thead>
+        <tr><th>No</th><th>Tanggal</th><th>Usia</th><th>Warna</th><th>Ukuran</th><th>Cotton</th><th>Banyak</th><th>Harga</th><th>Jumlah</th><th>Keterangan</th></tr>
+      </thead>
+      <tbody>
+        <tr v-for="(k, i) in pengeluaranKaosData" :key="'kaos'+i">
+          <td>{{ i+1 }}</td>
+          <td><input type="date" v-model="k.tanggal" /></td>
+          <td><select v-model="k.usia"><option>Dewasa</option><option>Anak</option></select></td>
+          <td><input v-model="k.warna" /></td>
+          <td><select v-model="k.ukuran"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option><option>XXXXL</option></select></td>
+          <td><select v-model="k.cotton"><option>24s</option><option>30s</option></select></td>
+          <td><input type="number" v-model.number="k.banyak" /></td>
+          <td><input type="number" v-model.number="k.harga" /></td>
+          <td>Rp{{ (k.banyak * k.harga).toLocaleString('id-ID') }}</td>
+          <td><input v-model="k.keterangan" /></td>
+        </tr>
+      </tbody>
+    </table>
+    <button @click="pengeluaranKaosData.push({tanggal:'', usia:'Dewasa', warna:'', ukuran:'S', cotton:'24s', banyak:0, harga:0, keterangan:''})" class="px-3 py-1 bg-green-600 text-white rounded">+ Tambah Baris</button>
+  </div>
+</div>
+
+    <!-- STOK RETUR -->
+    <div v-show="tab === 'stok_retur'" class="bg-white p-4 shadow rounded">
+      <h2 class="text-lg font-bold mb-4">Stok Retur</h2>
+      <table class="w-full mb-4">
+        <thead class="bg-red-600 text-white text-sm">
+          <tr>
+            <th>No</th><th>Tanggal</th><th>Produk</th><th>Usia</th><th>Ukuran</th><th>Warna</th>
+            <th>Resi</th><th>Cotton</th><th>Marketplace</th><th>Banyak</th><th>Harga</th>
+            <th>Jumlah</th><th>Diterima</th><th>Ket</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(p, i) in returItems" :key="'retur'+i" class="text-sm">
+            <td>{{ i+1 }}</td>
+            <td>{{ p.tanggal }}</td>
+            <td>{{ p.produk }}</td>
+            <td>{{ p.usia }}</td>
+            <td>{{ p.ukuran }}</td>
+            <td>{{ p.warna }}</td>
+            <td>{{ p.resi }}</td>
+            <td>{{ p.cotton }}</td>
+            <td>{{ p.marketplace }}</td>
+            <td>{{ p.banyak }}</td>
+            <td>{{ p.harga }}</td>
+            <td>Rp{{ (p.banyak * p.harga).toLocaleString('id-ID') }}</td>
+            <td>{{ p.diterima }}</td>
+            <td>{{ p.keterangan }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  <script>
+    const { createApp, watch, computed } = Vue;
+
+    createApp({
+      data() {
+        return {
+          tab: 'rekap',
+          gajiKaryawan: 0,
+          penjualan: JSON.parse(localStorage.getItem('penjualan') || '[]'),
+          pengeluaranDTFData: JSON.parse(localStorage.getItem('pengeluaranDTF') || '[]'),
+          pengeluaranHarianData: JSON.parse(localStorage.getItem('pengeluaranHarian') || '[]'),
+          pengeluaranKaosData: JSON.parse(localStorage.getItem('pengeluaranKaos') || '[]'),
+          searchQuery: '',
+        };
+      },
+      computed: {
+        totalPCS() {
+          return this.penjualan.reduce((t, p) => t + (p.banyak || 0), 0);
+        },
+        totalOmzet() {
+          return this.penjualan.reduce((t, p) => t + ((p.banyak || 0) * (p.harga || 0)), 0);
+        },
+        omzetPerMarketplace() {
+          const data = { TikTok: 0, Shopee: 0, Lazada: 0, Offline: 0 };
+          this.penjualan.forEach(p => {
+            if (p.marketplace && data[p.marketplace]) {
+              data[p.marketplace] += (p.banyak || 0) * (p.harga || 0);
+            }
+          });
+          return data;
+        },
+        pcsPerMarketplace() {
+          const data = { TikTok: 0, Shopee: 0, Lazada: 0, Offline: 0 };
+          this.penjualan.forEach(p => {
+            if (p.marketplace && data[p.marketplace]) {
+              data[p.marketplace] += (p.banyak || 0);
+            }
+          });
+          return data;
+        },
+        namaProduk() {
+          return [...new Set(this.penjualan.map(p => p.produk).filter(p => p))];
+        },
+        pengeluaranDTF() {
+          return this.pengeluaranDTFData.reduce((t, dtf) => t + (dtf.meter * dtf.harga || 0), 0);
+        },
+        pengeluaranHarian() {
+          return this.pengeluaranHarianData.reduce((t, h) => t + (h.harga * h.banyak || 0), 0);
+        },
+        pengeluaranKaos() {
+          return this.pengeluaranKaosData.reduce((t, k) => t + (k.banyak * k.harga || 0), 0);
+        },
+        totalPengeluaran() {
+          return this.gajiKaryawan + this.pengeluaranDTF + this.pengeluaranHarian + this.pengeluaranKaos;
+        },
+        filteredPenjualan() {
+          if (!this.searchQuery) return this.penjualan;
+          return this.penjualan.filter(p => 
+            p.resi && p.resi.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+            p.marketplace && p.marketplace.toLowerCase().includes(this.searchQuery.toLowerCase())
+          );
+        },
+        returItems() {
+          return this.penjualan.filter(p => p.keterangan === 'Retur');
+        }
+      },
+      methods: {
+        tambahBaris() {
+          this.penjualan.push({
+            tanggal: '', produk: '', usia: 'Dewasa', ukuran: 'S', warna: 'Hitam',
+            resi: '', cotton: '24s', marketplace: 'Shopee', banyak: 0, harga: 0,
+            diterima: null, keterangan: ''
+          });
+        },
+        filterPenjualan() {
+          // This is handled by the computed property filteredPenjualan
+        }
+      },
+      watch: {
+        penjualan: {
+          deep: true,
+          handler(newVal) {
+            localStorage.setItem('penjualan', JSON.stringify(newVal));
+          }
+        },
+        pengeluaranDTFData: {
+          deep: true,
+          handler(newVal) {
+            localStorage.setItem('pengeluaranDTF', JSON.stringify(newVal));
+          }
+        },
+        pengeluaranHarianData: {
+          deep: true,
+          handler(newVal) {
+            localStorage.setItem('pengeluaranHarian', JSON.stringify(newVal));
+          }
+        },
+        pengeluaranKaosData: {
+          deep: true,
+          handler(newVal) {
+            localStorage.setItem('pengeluaranKaos', JSON.stringify(newVal));
+          }
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
